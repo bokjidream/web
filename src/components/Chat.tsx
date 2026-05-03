@@ -3,21 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from './Icons';
+import type { ChatResponse, ServiceSelectData, WelfareCandidate } from '@/lib/types';
 
 interface Message {
   role: 'bot' | 'user';
   text: string;
-  tip?: { term: string; text: string } | null;
 }
-
-const flow = [
-  { q: '먼저 연세를 여쭤봐도 될까요?', chips: ['60대', '70대', '80대 이상', '그 외'] },
-  { q: '함께 살고 있는 가족은 어떻게 되세요?', chips: ['혼자 살아요', '배우자와 둘', '자녀와 함께', '그 외'] },
-  { q: '주거 형태는 어떠신가요?', chips: ['자가 (본인 소유)', '전세', '월세', '기타'] },
-  { q: '한 달 소득(연금·월급 등)은 대략 얼마쯤 되세요?', chips: ['50만원 미만', '50–100만원', '100–200만원', '잘 모르겠어요'] },
-  { q: '건강 상태는 어떠세요? 병원 자주 가시나요?', chips: ['건강해요', '가끔 병원에 가요', '지병이 있어요', '장애 등급이 있어요'] },
-  { q: '거의 다 왔어요! 혹시 기초생활수급자이신가요?', chips: ['네, 수급자예요', '아니요', '잘 모르겠어요'] },
-];
 
 const stageLabels = [
   { label: '기본정보', range: [0, 2] as [number, number] },
@@ -28,56 +19,116 @@ const stageLabels = [
 
 export default function Chat() {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: '안녕하세요! 저는 복지봇이에요. 😊 받을 수 있는 복지 혜택을 함께 찾아드릴게요.', tip: null },
-    { role: 'bot', text: flow[0].q, tip: null },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [step, setStep] = useState(0);
-  const [choices, setChoices] = useState(flow[0].chips);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<WelfareCandidate[]>([]);
+  const [isServiceSelect, setIsServiceSelect] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
-  const submitAnswer = (answer: string) => {
-    if (loading) return;
-    setMessages((m) => [...m, { role: 'user', text: answer }]);
-    setChoices([]);
-    setInput('');
-    setLoading(true);
+  // 세션 시작
+  useEffect(() => {
+    startChat();
+  }, []);
 
-    setTimeout(() => {
-      const next = step + 1;
-      if (next < flow.length) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: 'bot',
-            text: flow[next].q,
-            tip: next === 3 ? { term: '소득', text: '연금, 근로소득, 기타 정기 수입 모두 포함한 대략적 금액입니다.' } : null,
-          },
-        ]);
-        setChoices(flow[next].chips);
-        setStep(next);
-      } else {
-        setMessages((m) => [
-          ...m,
-          { role: 'bot', text: '감사합니다! 답변을 바탕으로 받으실 수 있는 복지 혜택을 분석하고 있어요... ✨' },
-        ]);
-        setTimeout(() => router.push('/results'), 1500);
-      }
-      setLoading(false);
-    }, 900);
+  const addBotMessage = (text: string) => {
+    setMessages((m) => [...m, { role: 'bot', text }]);
   };
 
-  const pct = Math.min(100, Math.round((step / flow.length) * 100));
+  const addUserMessage = (text: string) => {
+    setMessages((m) => [...m, { role: 'user', text }]);
+  };
+
+  const handleResponse = (res: ChatResponse) => {
+    setThreadId(res.thread_id);
+
+    if (res.type === 'interview') {
+      const data = res.data as { question: string; missing_fields: string[] };
+      addBotMessage(data.question);
+      setStep((s) => s + 1);
+      setIsServiceSelect(false);
+
+    } else if (res.type === 'service_select') {
+      const data = res.data as ServiceSelectData;
+      setCandidates(data.welfare_candidates);
+      setIsServiceSelect(true);
+      addBotMessage(
+        data.error
+          ? `${data.error}\n\n${data.candidates}`
+          : data.candidates,
+      );
+
+    } else if (res.type === 'done') {
+      addBotMessage('분석이 완료됐어요! 결과 페이지로 이동합니다. ✨');
+      // 결과 데이터 세션 스토리지에 저장
+      try { sessionStorage.setItem('chatResult', JSON.stringify(res.data)); } catch {}
+      setTimeout(() => router.push('/results'), 1200);
+
+    } else if (res.type === 'no_results') {
+      addBotMessage(
+        '죄송합니다. 입력하신 정보로는 현재 조건에 맞는 복지 서비스를 찾을 수 없습니다.\n\n더 자세한 안내를 원하시면 가까운 주민센터를 방문해 주세요.',
+      );
+    }
+  };
+
+  const startChat = async () => {
+    setLoading(true);
+    setError(null);
+    setMessages([{ role: 'bot', text: '안녕하세요! 저는 복지봇이에요. 😊 받을 수 있는 복지 혜택을 함께 찾아드릴게요.' }]);
+    try {
+      const res = await fetch('/api/chat/start', { method: 'POST' });
+      if (!res.ok) throw new Error('서버 오류');
+      const data: ChatResponse = await res.json();
+      handleResponse(data);
+    } catch {
+      setError('AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitMessage = async (message: string) => {
+    if (!threadId || loading || !message.trim()) return;
+
+    addUserMessage(message);
+    setInput('');
+    setLoading(true);
+    setError(null);
+    setIsServiceSelect(false);
+
+    try {
+      const res = await fetch('/api/chat/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: threadId, message }),
+      });
+      if (!res.ok) throw new Error('서버 오류');
+      const data: ChatResponse = await res.json();
+      handleResponse(data);
+    } catch {
+      setError('메시지 전송 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectService = (candidate: WelfareCandidate) => {
+    submitMessage(String(candidate.priority));
+  };
+
+  const pct = Math.min(100, Math.round((step / 6) * 100));
   const currentStage = stageLabels.findIndex((s) => step >= s.range[0] && step < s.range[1]);
 
   return (
     <div className="chat-wrap screen">
+      {/* 진행 바 */}
       <div className="progress-bar-wrap">
         <div className="progress-steps">
           {stageLabels.map((s, i) => (
@@ -98,56 +149,96 @@ export default function Chat() {
         </div>
       </div>
 
+      {/* 채팅 영역 */}
       <div className="chat-scroll" ref={scrollRef}>
         <div className="chat-list">
           {messages.map((m, i) => (
             <div key={i} className={`msg-row ${m.role}`}>
               {m.role === 'bot' && <div className="avatar-bot">복</div>}
-              <div className={`bubble ${m.role}`}>
+              <div className={`bubble ${m.role}`} style={{ whiteSpace: 'pre-line' }}>
                 {m.text}
-                {m.tip && (
-                  <>
-                    {' '}
-                    <span className="term" data-tip={m.tip.text}>{m.tip.term}이란?</span>
-                  </>
-                )}
               </div>
             </div>
           ))}
           {loading && (
             <div className="msg-row bot">
               <div className="avatar-bot">복</div>
-              <div className="bubble bot loading">
-                <span /><span /><span />
-              </div>
+              <div className="bubble bot loading"><span /><span /><span /></div>
             </div>
           )}
-          {!loading && choices.length > 0 && (
-            <div className="quick-chips">
-              {choices.map((c, i) => (
-                <button key={i} className="chip" onClick={() => submitAnswer(c)}>{c}</button>
+          {error && (
+            <div style={{ textAlign: 'center', padding: '12px', color: 'var(--danger)', fontSize: '0.9rem' }}>
+              {error}
+              <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={startChat}>
+                다시 시작
+              </button>
+            </div>
+          )}
+
+          {/* 서비스 선택 카드 목록 */}
+          {isServiceSelect && !loading && candidates.length > 0 && (
+            <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', gap: 10, paddingLeft: 46 }}>
+              {candidates.map((c) => (
+                <button
+                  key={c.serv_id}
+                  onClick={() => selectService(c)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '14px 18px',
+                    borderRadius: 14,
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface)',
+                    cursor: 'pointer',
+                    transition: 'border-color .15s, box-shadow .15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)', marginBottom: 4 }}>
+                    {c.priority}. {c.serv_nm}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-sub)', marginBottom: 6 }}>
+                    {c.department}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-sub)' }}>
+                    {c.serv_dgst.slice(0, 80)}...
+                  </div>
+                  {c.eligibility_reason && (
+                    <div style={{ marginTop: 6, fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 500 }}>
+                      → {c.eligibility_reason}
+                    </div>
+                  )}
+                </button>
               ))}
             </div>
           )}
         </div>
       </div>
 
+      {/* 입력창 */}
       <div className="chat-input-wrap">
         <form
           className="chat-input"
-          onSubmit={(e) => { e.preventDefault(); if (input.trim()) submitAnswer(input.trim()); }}
+          onSubmit={(e) => { e.preventDefault(); submitMessage(input.trim()); }}
         >
           <input
             type="text"
-            placeholder="직접 입력하거나 위 선택지를 눌러주세요"
+            placeholder={isServiceSelect ? '번호를 입력하거나 위 목록에서 선택해주세요' : '직접 입력하거나 위 선택지를 눌러주세요'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            disabled={loading}
             aria-label="메시지 입력"
           />
           <button type="button" className="icon-btn" aria-label="음성 입력" title="음성 입력">
             <Icon name="mic" size={22} />
           </button>
-          <button type="submit" className="icon-btn primary" aria-label="보내기">
+          <button type="submit" className="icon-btn primary" aria-label="보내기" disabled={loading || !input.trim()}>
             <Icon name="send" size={20} color="#fff" />
           </button>
         </form>
