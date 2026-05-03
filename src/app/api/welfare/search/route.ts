@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const RAG_URL = process.env.RAG_SERVICE_URL ?? 'http://localhost:8000';
+const RAG_URL = process.env.RAG_SERVICE_URL ?? 'http://localhost:8002';
 
 export async function POST(req: NextRequest) {
   try {
