@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from './Icons';
-import type { WelfareService } from '@/lib/types';
+import type { DoneData, WelfareCandidate } from '@/lib/types';
 
 interface Fields {
   name: string;
@@ -17,29 +17,40 @@ interface Fields {
 }
 
 export default function Form() {
-  const [selected, setSelected] = useState<WelfareService | null>(null);
+  const [candidate, setCandidate] = useState<WelfareCandidate | null>(null);
+  const [applicationGuide, setApplicationGuide] = useState<string>('');
   const [fields, setFields] = useState<Fields>({
-    name: '김복지',
-    birth: '1954-03-15',
+    name: '',
+    birth: '',
     phone: '',
-    address: '서울특별시 OO구 행복로 123',
-    bank: '국민은행 123-45-6789',
-    income: '월 82만원 (국민연금)',
-    family: '배우자 1명',
+    address: '',
+    bank: '',
+    income: '',
+    family: '',
     reason: '',
   });
 
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('selectedService');
-      if (raw) setSelected(JSON.parse(raw));
+      if (raw) setCandidate(JSON.parse(raw));
+
+      const resultRaw = sessionStorage.getItem('chatResult');
+      if (resultRaw) {
+        const result: DoneData = JSON.parse(resultRaw);
+        setApplicationGuide(result.application_guide ?? '');
+        if (!raw && result.selected_service) {
+          setCandidate(result.selected_service);
+        }
+      }
     } catch {}
   }, []);
 
   const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setFields((f) => ({ ...f, [k]: e.target.value }));
 
-  const s = selected || { name: '기초연금', dept: '보건복지부' };
+  const name = candidate?.serv_nm ?? '복지 서비스';
+  const dept = candidate?.department ?? '';
 
   const FieldRow = ({
     id, label, manual, placeholder, hint, multi,
@@ -75,31 +86,38 @@ export default function Form() {
         </Link>
 
         <div className="card" style={{ padding: 28, marginBottom: 20 }}>
-          <div style={{ fontSize: '0.88rem', color: 'var(--text-sub)' }}>{s.dept} · 신청서 초안</div>
-          <h1 style={{ margin: '4px 0 0', fontSize: '1.8rem', letterSpacing: '-0.02em' }}>{s.name} 신청서 초안</h1>
+          <div style={{ fontSize: '0.88rem', color: 'var(--text-sub)' }}>{dept} · 신청서 초안</div>
+          <h1 style={{ margin: '4px 0 0', fontSize: '1.8rem', letterSpacing: '-0.02em' }}>{name} 신청서 초안</h1>
         </div>
 
-        <div className="banner info">
-          <Icon name="sparkles" size={18} />
-          <div>
-            <b>인터뷰 내용을 바탕으로 신청서 초안을 작성했어요.</b><br />
-            파란색은 자동 입력된 항목, <span style={{ color: '#B87B24', fontWeight: 600 }}>노란색</span>은 직접 확인·수정이 필요한 항목이에요.
+        {applicationGuide ? (
+          <div className="banner info">
+            <Icon name="sparkles" size={18} />
+            <div style={{ whiteSpace: 'pre-line' }}>{applicationGuide}</div>
           </div>
-        </div>
+        ) : (
+          <div className="banner info">
+            <Icon name="sparkles" size={18} />
+            <div>
+              <b>인터뷰 내용을 바탕으로 신청서 초안을 작성했어요.</b><br />
+              직접 입력이 필요한 항목은 <span style={{ color: '#B87B24', fontWeight: 600 }}>노란색</span>으로 표시돼요.
+            </div>
+          </div>
+        )}
 
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card" style={{ padding: 28, marginTop: 20 }}>
           <h3 style={{ margin: '0 0 18px', fontSize: '1.1rem' }}>👤 기본 정보</h3>
-          <FieldRow id="name" label="성명" />
-          <FieldRow id="birth" label="생년월일" />
+          <FieldRow id="name" label="성명" manual placeholder="이름을 입력해주세요" />
+          <FieldRow id="birth" label="생년월일" manual placeholder="예: 1954-03-15" />
           <FieldRow id="phone" label="연락처" manual placeholder="010-0000-0000" hint="연락 가능한 번호를 입력해주세요." />
-          <FieldRow id="address" label="주소" />
+          <FieldRow id="address" label="주소" manual placeholder="거주지 주소를 입력해주세요" />
 
           <h3 style={{ margin: '24px 0 18px', fontSize: '1.1rem' }}>💳 지급 정보</h3>
-          <FieldRow id="bank" label="입금 계좌 (본인 명의)" />
+          <FieldRow id="bank" label="입금 계좌 (본인 명의)" manual placeholder="은행명 계좌번호" />
 
           <h3 style={{ margin: '24px 0 18px', fontSize: '1.1rem' }}>📊 소득·가족 정보</h3>
-          <FieldRow id="income" label="월 소득" />
-          <FieldRow id="family" label="가족 구성" />
+          <FieldRow id="income" label="월 소득" manual placeholder="월 소득을 입력해주세요" />
+          <FieldRow id="family" label="가족 구성" manual placeholder="예: 배우자 1명" />
 
           <h3 style={{ margin: '24px 0 18px', fontSize: '1.1rem' }}>📝 신청 사유 (선택)</h3>
           <FieldRow id="reason" label="특이사항·추가 설명" manual multi placeholder="특별히 알리고 싶은 사유가 있다면 적어주세요." />
@@ -114,9 +132,15 @@ export default function Form() {
           <Link href="/report" className="btn btn-ghost">
             <Icon name="download" size={16} /> 리포트 저장
           </Link>
-          <button className="btn btn-primary">
-            복지로에서 신청하기 <Icon name="external" size={16} color="#fff" />
-          </button>
+          {candidate?.application_url ? (
+            <a href={candidate.application_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              복지로에서 신청하기 <Icon name="external" size={16} color="#fff" />
+            </a>
+          ) : (
+            <button className="btn btn-primary">
+              복지로에서 신청하기 <Icon name="external" size={16} color="#fff" />
+            </button>
+          )}
         </div>
       </div>
     </div>
