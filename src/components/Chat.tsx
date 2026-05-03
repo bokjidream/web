@@ -28,13 +28,16 @@ export default function Chat() {
   const [candidates, setCandidates] = useState<WelfareCandidate[]>([]);
   const [isServiceSelect, setIsServiceSelect] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
-  // 세션 시작
+  // 세션 시작 (StrictMode 이중 실행 방지)
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
     startChat();
   }, []);
 
