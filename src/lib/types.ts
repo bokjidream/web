@@ -24,7 +24,7 @@ export interface WelfareCandidate {
   score: number;
   priority: number;
   required_documents: string[];
-  application_fields: string[];
+  application_method: string;
   application_url: string | null;
   detail_fetched: boolean;
 }
