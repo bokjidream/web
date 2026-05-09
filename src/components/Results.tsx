@@ -1,30 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from './Icons';
-import { RESULTS_DATA } from '@/lib/data';
-import type { WelfareService } from '@/lib/types';
+import type { DoneData, WelfareCandidate } from '@/lib/types';
 
-type Tab = 'eligible' | 'needsCheck' | 'notEligible';
-
-function LevelBadge({ level }: { level: WelfareService['level'] }) {
-  if (level === 'high') return <span className="badge badge-green"><span className="badge-dot" />가능성 높음</span>;
-  if (level === 'mid') return <span className="badge badge-yellow"><span className="badge-dot" />추가 확인 필요</span>;
+function ScoreBadge({ score }: { score: number }) {
+  if (score >= 0.6) return <span className="badge badge-green"><span className="badge-dot" />가능성 높음</span>;
+  if (score >= 0.3) return <span className="badge badge-yellow"><span className="badge-dot" />추가 확인 필요</span>;
   return <span className="badge badge-red"><span className="badge-dot" />해당 가능성 낮음</span>;
 }
 
 export default function Results() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('eligible');
-  const data = RESULTS_DATA[tab];
-  const total = RESULTS_DATA.eligible.length + RESULTS_DATA.needsCheck.length;
+  const [data, setData] = useState<DoneData | null>(null);
 
-  const goToService = (path: string, service: WelfareService) => {
-    try { sessionStorage.setItem('selectedService', JSON.stringify(service)); } catch {}
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('chatResult');
+      if (raw) setData(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const candidates = data?.welfare_candidates ?? [];
+
+  const goToService = (path: string, candidate: WelfareCandidate) => {
+    try { sessionStorage.setItem('selectedService', JSON.stringify(candidate)); } catch {}
     router.push(path);
   };
+
+  if (!data) {
+    return (
+      <div className="screen" style={{ padding: '32px 0 100px', textAlign: 'center' }}>
+        <div className="narrow">
+          <p style={{ color: 'var(--text-sub)', marginBottom: 20 }}>진단 결과가 없어요. 먼저 복지 진단을 진행해주세요.</p>
+          <Link href="/chat" className="btn btn-primary">복지 진단 시작하기</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen" style={{ padding: '32px 0 100px' }}>
@@ -38,54 +53,43 @@ export default function Results() {
             <Icon name="sparkles" size={16} /> 진단 결과
           </div>
           <h1 style={{ margin: '0 0 6px', fontSize: 'clamp(1.5rem, 3vw, 2.1rem)', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
-            김복지 님이 받을 수 있는<br />복지서비스 <span style={{ color: 'var(--primary)' }}>{total}개</span>를 찾았어요
+            받을 수 있는 복지서비스<br /><span style={{ color: 'var(--primary)' }}>{candidates.length}개</span>를 찾았어요
           </h1>
           <p style={{ margin: '8px 0 0', color: 'var(--text-sub)' }}>
-            총 460여 개 서비스 중 답변 내용과 일치도가 높은 서비스를 골라드렸어요.
+            입력하신 정보를 바탕으로 맞춤 복지 서비스를 찾아드렸어요.
           </p>
         </div>
 
-        <div className="tabs" style={{ marginBottom: 16 }}>
-          <button className={`tab ${tab === 'eligible' ? 'active' : ''}`} onClick={() => setTab('eligible')}>
-            <span className="badge-dot" style={{ background: '#5CB85C' }} />
-            즉시 신청 가능 <b>({RESULTS_DATA.eligible.length})</b>
-          </button>
-          <button className={`tab ${tab === 'needsCheck' ? 'active' : ''}`} onClick={() => setTab('needsCheck')}>
-            <span className="badge-dot" style={{ background: '#F0AD4E' }} />
-            추가 확인 필요 <b>({RESULTS_DATA.needsCheck.length})</b>
-          </button>
-          <button className={`tab ${tab === 'notEligible' ? 'active' : ''}`} onClick={() => setTab('notEligible')}>
-            <span className="badge-dot" style={{ background: '#D9534F' }} />
-            해당 없음 <b>({RESULTS_DATA.notEligible.length})</b>
-          </button>
-        </div>
-
         <div style={{ display: 'grid', gap: 12 }}>
-          {data.map((s, i) => (
-            <div key={i} className="result-card">
+          {candidates.map((c) => (
+            <div key={c.serv_id} className="result-card">
               <div className="rc-top">
                 <div>
-                  <div className="rc-title">{s.name}</div>
+                  <div className="rc-title">{c.serv_nm}</div>
                   <div className="rc-dept">
                     <span className="badge badge-gray" style={{ marginRight: 6 }}>
-                      <Icon name="building" size={12} /> {s.dept}
+                      <Icon name="building" size={12} /> {c.department}
                     </span>
                   </div>
                 </div>
-                <LevelBadge level={s.level} />
+                <ScoreBadge score={c.score} />
               </div>
-              {s.amount && <div className="rc-amount">💰 {s.amount}</div>}
-              <div style={{ color: 'var(--text-sub)', fontSize: '0.95rem' }}>{s.summary}</div>
-              {tab !== 'notEligible' && (
-                <div className="rc-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => goToService('/docs', s)}>
-                    서류 안내 보기
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={() => goToService('/form', s)}>
-                    신청서 초안 작성 <Icon name="arrow" size={14} />
-                  </button>
+              <div style={{ color: 'var(--text-sub)', fontSize: '0.95rem' }}>
+                {c.serv_dgst.length > 120 ? c.serv_dgst.slice(0, 120) + '...' : c.serv_dgst}
+              </div>
+              {c.eligibility_reason && (
+                <div style={{ marginTop: 6, fontSize: '0.88rem', color: 'var(--primary)', fontWeight: 500 }}>
+                  → {c.eligibility_reason}
                 </div>
               )}
+              <div className="rc-actions">
+                <button className="btn btn-secondary btn-sm" onClick={() => goToService('/docs', c)}>
+                  서류 안내 보기
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => goToService('/form', c)}>
+                  신청서 초안 작성 <Icon name="arrow" size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
