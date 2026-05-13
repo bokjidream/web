@@ -10,6 +10,16 @@ interface Message {
   text: string;
 }
 
+interface SavedSession {
+  threadId: string;
+  messages: Message[];
+  step: number;
+  candidates: WelfareCandidate[];
+  isServiceSelect: boolean;
+}
+
+const SESSION_KEY = 'chatSession';
+
 const stageLabels = [
   { label: '기본정보', range: [0, 2] as [number, number] },
   { label: '소득/재산', range: [2, 4] as [number, number] },
@@ -27,6 +37,7 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<WelfareCandidate[]>([]);
   const [isServiceSelect, setIsServiceSelect] = useState(false);
+  const [hasRestoredSession, setHasRestoredSession] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
 
@@ -34,12 +45,36 @@ export default function Chat() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
-  // 세션 시작 (StrictMode 이중 실행 방지)
+  // 세션 시작 — 저장된 세션 있으면 복원, 없으면 새로 시작
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const saved: SavedSession = JSON.parse(raw);
+        setThreadId(saved.threadId);
+        setMessages(saved.messages);
+        setStep(saved.step);
+        setCandidates(saved.candidates);
+        setIsServiceSelect(saved.isServiceSelect);
+        setHasRestoredSession(true);
+        return;
+      }
+    } catch {}
+
     startChat();
   }, []);
+
+  // 세션 상태 변경 시 자동 저장
+  useEffect(() => {
+    if (!threadId) return;
+    try {
+      const session: SavedSession = { threadId, messages, step, candidates, isServiceSelect };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {}
+  }, [threadId, messages, step, candidates, isServiceSelect]);
 
   const addBotMessage = (text: string) => {
     setMessages((m) => [...m, { role: 'bot', text }]);
@@ -70,20 +105,23 @@ export default function Chat() {
 
     } else if (res.type === 'done') {
       addBotMessage('분석이 완료됐어요! 결과 페이지로 이동합니다. ✨');
-      // 결과 데이터 세션 스토리지에 저장
       try { sessionStorage.setItem('chatResult', JSON.stringify(res.data)); } catch {}
+      // 완료 후 세션 정리
+      try { sessionStorage.removeItem(SESSION_KEY); } catch {}
       setTimeout(() => router.push('/results'), 1200);
 
     } else if (res.type === 'no_results') {
       addBotMessage(
         '죄송합니다. 입력하신 정보로는 현재 조건에 맞는 복지 서비스를 찾을 수 없습니다.\n\n더 자세한 안내를 원하시면 가까운 주민센터를 방문해 주세요.',
       );
+      try { sessionStorage.removeItem(SESSION_KEY); } catch {}
     }
   };
 
   const startChat = async () => {
     setLoading(true);
     setError(null);
+    setHasRestoredSession(false);
     setMessages([{ role: 'bot', text: '안녕하세요! 저는 복지봇이에요. 😊 받을 수 있는 복지 혜택을 함께 찾아드릴게요.' }]);
     try {
       const res = await fetch('/api/chat/start', { method: 'POST' });
@@ -95,6 +133,16 @@ export default function Chat() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const restartChat = () => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    setThreadId(null);
+    setStep(0);
+    setCandidates([]);
+    setIsServiceSelect(false);
+    startedRef.current = false;
+    startChat();
   };
 
   const submitMessage = async (message: string) => {
@@ -151,6 +199,26 @@ export default function Chat() {
           <Icon name="lock" size={16} /> 입력하신 정보는 기기 밖으로 전송되지 않습니다
         </div>
       </div>
+
+      {/* 이전 세션 복원 배너 */}
+      {hasRestoredSession && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 20px', background: 'var(--primary-light, #EBF2FF)',
+          borderBottom: '1px solid var(--border)', fontSize: '0.88rem', gap: 12,
+        }}>
+          <span style={{ color: 'var(--primary)', fontWeight: 500 }}>
+            💬 이전 대화를 이어가고 있어요
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={restartChat}
+            style={{ flexShrink: 0 }}
+          >
+            새로 시작하기
+          </button>
+        </div>
+      )}
 
       {/* 채팅 영역 */}
       <div className="chat-scroll" ref={scrollRef}>
