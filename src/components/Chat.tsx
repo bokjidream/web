@@ -99,8 +99,8 @@ export default function Chat() {
       setIsServiceSelect(true);
       addBotMessage(
         data.error
-          ? `${data.error}\n\n${data.candidates}`
-          : data.candidates,
+          ? `${data.error}\n\n아래에서 서비스를 선택해주세요.`
+          : '분석 결과 아래 서비스들이 매칭됐어요. 자세히 알아볼 서비스를 선택해주세요. 👇',
       );
 
     } else if (res.type === 'done') {
@@ -300,16 +300,16 @@ export default function Chat() {
         >
           <input
             type="text"
-            placeholder={isServiceSelect ? '번호를 입력하거나 위 목록에서 선택해주세요' : '직접 입력하거나 위 선택지를 눌러주세요'}
+            placeholder={isServiceSelect ? '위 카드에서 서비스를 선택해주세요' : '직접 입력하거나 위 선택지를 눌러주세요'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={loading}
+            disabled={loading || isServiceSelect}
             aria-label="메시지 입력"
           />
           <button type="button" className="icon-btn" aria-label="음성 입력" title="음성 입력">
             <Icon name="mic" size={22} />
           </button>
-          <button type="submit" className="icon-btn primary" aria-label="보내기" disabled={loading || !input.trim()}>
+          <button type="submit" className="icon-btn primary" aria-label="보내기" disabled={loading || isServiceSelect || !input.trim()}>
             <Icon name="send" size={20} color="#fff" />
           </button>
         </form>
