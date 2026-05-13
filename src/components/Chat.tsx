@@ -10,18 +10,14 @@ interface Message {
   text: string;
 }
 
-const stageLabels = [
-  { label: '기본정보', range: [0, 2] as [number, number] },
-  { label: '소득/재산', range: [2, 4] as [number, number] },
-  { label: '가구 현황', range: [4, 6] as [number, number] },
-  { label: '분석', range: [6, 6] as [number, number] },
-];
+const stageLabels = ['기본 정보', '서비스 선택', '추가 확인', '결과 생성'];
+const stagePct = [15, 40, 70, 100];
 
 export default function Chat() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
+  const [flowStage, setFlowStage] = useState(0); // 0:기본정보 1:서비스선택 2:추가확인 3:결과생성
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,13 +51,14 @@ export default function Chat() {
     if (res.type === 'interview') {
       const data = res.data as { question: string; missing_fields: string[] };
       addBotMessage(data.question);
-      setStep((s) => s + 1);
+      setFlowStage((s) => s >= 1 ? 2 : 0); // 서비스 선택 후 interview면 2차 인터뷰 단계
       setIsServiceSelect(false);
 
     } else if (res.type === 'service_select') {
       const data = res.data as ServiceSelectData;
       setCandidates(data.welfare_candidates);
       setIsServiceSelect(true);
+      setFlowStage(1);
       addBotMessage(
         data.error
           ? `${data.error}\n\n${data.candidates}`
@@ -69,10 +66,10 @@ export default function Chat() {
       );
 
     } else if (res.type === 'done') {
-      addBotMessage('분석이 완료됐어요! 결과 페이지로 이동합니다. ✨');
-      // 결과 데이터 세션 스토리지에 저장
+      setFlowStage(3);
+      addBotMessage('분석이 완료됐어요! 리포트 페이지로 이동합니다. ✨');
       try { sessionStorage.setItem('chatResult', JSON.stringify(res.data)); } catch {}
-      setTimeout(() => router.push('/results'), 1200);
+      setTimeout(() => router.push('/report'), 1200);
 
     } else if (res.type === 'no_results') {
       addBotMessage(
@@ -126,19 +123,18 @@ export default function Chat() {
     submitMessage(String(candidate.priority));
   };
 
-  const pct = Math.min(100, Math.round((step / 6) * 100));
-  const currentStage = stageLabels.findIndex((s) => step >= s.range[0] && step < s.range[1]);
+  const pct = stagePct[flowStage];
 
   return (
     <div className="chat-wrap screen">
       {/* 진행 바 */}
       <div className="progress-bar-wrap">
         <div className="progress-steps">
-          {stageLabels.map((s, i) => (
+          {stageLabels.map((label, i) => (
             <span key={i}>
-              <span className={`progress-step ${i === currentStage ? 'active' : ''} ${i < currentStage ? 'done' : ''}`}>
-                {i < currentStage && <Icon name="check" size={12} />}
-                {i + 1}단계 {s.label}
+              <span className={`progress-step ${i === flowStage ? 'active' : ''} ${i < flowStage ? 'done' : ''}`}>
+                {i < flowStage && <Icon name="check" size={12} />}
+                {i + 1}단계 {label}
               </span>
               {i < stageLabels.length - 1 && <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>→</span>}
             </span>
