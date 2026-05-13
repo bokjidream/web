@@ -105,6 +105,15 @@ export default function Form() {
           </div>
         )}
 
+        {candidate?.application_method && (
+          <div className="card" style={{ padding: 22, marginTop: 20 }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '1.05rem' }}>📋 신청 방법</h3>
+            <div style={{ whiteSpace: 'pre-line', fontSize: '0.95rem', color: 'var(--text)', lineHeight: 1.8 }}>
+              {candidate.application_method}
+            </div>
+          </div>
+        )}
+
         <div className="card" style={{ padding: 28, marginTop: 20 }}>
           <h3 style={{ margin: '0 0 18px', fontSize: '1.1rem' }}>👤 기본 정보</h3>
           <FieldRow id="name" label="성명" manual placeholder="이름을 입력해주세요" />
