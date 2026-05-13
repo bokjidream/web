@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
 import Icon from './Icons';
 import type { DoneData } from '@/lib/types';
 
@@ -18,6 +19,7 @@ export default function Report() {
 
   const candidates = data?.welfare_candidates ?? [];
   const finalReport = data?.final_report ?? '';
+  const selected = data?.selected_service;
 
   if (!data) {
     return (
@@ -34,7 +36,7 @@ export default function Report() {
     <div className="screen" style={{ padding: '32px 0 80px' }}>
       <div className="narrow">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-          <Link href="/results" className="btn btn-ghost btn-sm">← 결과로 돌아가기</Link>
+          <Link href="/chat" className="btn btn-ghost btn-sm">← 진단 다시하기</Link>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost btn-sm"><Icon name="share" size={14} /> 공유</button>
             <button className="btn btn-primary btn-sm"><Icon name="download" size={14} color="#fff" /> PDF 저장</button>
@@ -42,6 +44,7 @@ export default function Report() {
         </div>
 
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+          {/* 헤더 */}
           <div style={{ padding: '28px 36px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -53,10 +56,16 @@ export default function Report() {
           </div>
 
           <div style={{ padding: '32px 36px' }}>
-            <h1 style={{ margin: '0 0 24px', fontSize: '1.6rem', letterSpacing: '-0.02em' }}>
-              복지서비스 자가진단 결과
-            </h1>
+            {/* 선택 서비스 */}
+            {selected && (
+              <div style={{ marginBottom: 28, padding: '18px 22px', background: 'var(--primary-light, #EBF2FF)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, marginBottom: 4 }}>선택하신 서비스</div>
+                <div style={{ fontWeight: 700, fontSize: '1.15rem' }}>{selected.serv_nm}</div>
+                <div style={{ color: 'var(--text-sub)', fontSize: '0.88rem', marginTop: 2 }}>{selected.department}</div>
+              </div>
+            )}
 
+            {/* 통계 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
               <div style={{ background: 'var(--secondary-light)', borderRadius: 12, padding: '18px 20px' }}>
                 <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--secondary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -72,6 +81,7 @@ export default function Report() {
               </div>
             </div>
 
+            {/* AI 리포트 — 마크다운 렌더링 */}
             {finalReport && (
               <>
                 <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>📋 AI 분석 리포트</h3>
@@ -80,19 +90,33 @@ export default function Report() {
                   background: 'var(--surface)',
                   borderRadius: 12,
                   border: '1px solid var(--border)',
-                  whiteSpace: 'pre-line',
                   fontSize: '0.95rem',
                   lineHeight: 1.8,
                   color: 'var(--text)',
                   marginBottom: 28,
                 }}>
-                  {finalReport}
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h1 style={{ fontSize: '1.3rem', fontWeight: 700, margin: '16px 0 8px', letterSpacing: '-0.01em' }}>{children}</h1>,
+                      h2: ({ children }) => <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '14px 0 6px' }}>{children}</h2>,
+                      h3: ({ children }) => <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0 4px' }}>{children}</h3>,
+                      p: ({ children }) => <p style={{ margin: '6px 0' }}>{children}</p>,
+                      ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '6px 0' }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '6px 0' }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
+                      strong: ({ children }) => <strong style={{ fontWeight: 700, color: 'var(--text)' }}>{children}</strong>,
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>{children}</a>,
+                    }}
+                  >
+                    {finalReport}
+                  </ReactMarkdown>
                 </div>
               </>
             )}
 
+            {/* 매칭 서비스 목록 */}
             <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>✅ 매칭된 복지 서비스</h3>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 28 }}>
               {candidates.map((c) => (
                 <div key={c.serv_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 10, gap: 12 }}>
                   <div>
@@ -107,7 +131,16 @@ export default function Report() {
               ))}
             </div>
 
-            <h3 style={{ margin: '28px 0 12px', fontSize: '1.05rem' }}>📌 다음 단계 할 일</h3>
+            {/* 다른 서비스 보기 */}
+            {candidates.length > 1 && (
+              <div style={{ marginBottom: 28, textAlign: 'center' }}>
+                <Link href="/results" className="btn btn-ghost btn-sm">
+                  다른 서비스도 보기 ({candidates.length - 1}개 더)
+                </Link>
+              </div>
+            )}
+
+            <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>📌 다음 단계 할 일</h3>
             <ol style={{ margin: 0, paddingLeft: 20, color: 'var(--text)', lineHeight: 1.8 }}>
               <li>가까운 주민센터 또는 <a style={{ color: 'var(--primary)' }} href="https://bokjiro.go.kr" target="_blank" rel="noopener noreferrer">복지로</a>에서 신청 접수</li>
               <li>신분증, 통장 사본, 가족관계증명서 등 기본 서류 준비</li>

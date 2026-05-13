@@ -13,6 +13,26 @@ export interface ResultsData {
   notEligible: WelfareService[];
 }
 
+// ── RAG 상세 조회 타입 ──
+
+export interface ApplicationForm {
+  title: string;
+  url: string;
+  file_type: 'pdf' | 'hwp' | 'hwpx' | 'etc';
+}
+
+export interface WelfareDetail {
+  serv_id: string;
+  serv_nm: string;
+  application_url: string;
+  application_method: string;
+  application_forms: ApplicationForm[];
+  required_documents: string[];
+  alw_serv_cn: string;   // 지원 서비스 내용
+  sprt_cyc_nm: string;   // 지원 주기
+  srv_pvsn_nm: string;   // 서비스 제공 방식
+}
+
 // ── AI Agent API 응답 타입 ──
 
 export interface WelfareCandidate {

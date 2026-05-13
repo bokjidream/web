@@ -3,12 +3,28 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon from './Icons';
-import type { DoneData, WelfareCandidate } from '@/lib/types';
+import type { ApplicationForm, DoneData, WelfareCandidate, WelfareDetail } from '@/lib/types';
+
+const FILE_TYPE_LABEL: Record<ApplicationForm['file_type'], string> = {
+  pdf: 'PDF',
+  hwp: 'HWP',
+  hwpx: 'HWPX',
+  etc: '파일',
+};
+
+const FILE_TYPE_COLOR: Record<ApplicationForm['file_type'], string> = {
+  pdf: '#E53E3E',
+  hwp: '#3182CE',
+  hwpx: '#3182CE',
+  etc: '#718096',
+};
 
 export default function Docs() {
   const [candidate, setCandidate] = useState<WelfareCandidate | null>(null);
   const [guidance, setGuidance] = useState<string>('');
   const [checked, setChecked] = useState<Record<number, boolean>>({});
+  const [appForms, setAppForms] = useState<ApplicationForm[]>([]);
+  const [formsLoading, setFormsLoading] = useState(false);
 
   useEffect(() => {
     try {
@@ -26,6 +42,21 @@ export default function Docs() {
       }
     } catch {}
   }, []);
+
+  // application_forms 조회 — WelfareCandidate에는 없으므로 RAG API 직접 호출
+  useEffect(() => {
+    if (!candidate?.serv_id) return;
+    setFormsLoading(true);
+    fetch(`/api/welfare/${candidate.serv_id}`)
+      .then((r) => r.ok ? r.json() as Promise<WelfareDetail> : null)
+      .then((detail) => {
+        if (detail?.application_forms?.length) {
+          setAppForms(detail.application_forms);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFormsLoading(false));
+  }, [candidate?.serv_id]);
 
   const docs = candidate?.required_documents ?? [];
   const name = candidate?.serv_nm ?? '복지 서비스';
@@ -83,6 +114,67 @@ export default function Docs() {
           <div className="card" style={{ padding: 24, color: 'var(--text-sub)', textAlign: 'center' }}>
             서류 정보를 불러오는 중이에요. 주민센터 또는 복지로에서 확인해주세요.
           </div>
+        )}
+
+        {/* 신청 서식 다운로드 */}
+        {(formsLoading || appForms.length > 0) && (
+          <>
+            <h3 style={{ fontSize: '1.1rem', margin: '32px 0 12px' }}>📥 신청 서식 다운로드</h3>
+            {formsLoading ? (
+              <div className="card" style={{ padding: 20, color: 'var(--text-sub)', fontSize: '0.95rem' }}>
+                서식 파일을 불러오는 중이에요…
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {appForms.map((form, i) => (
+                  <a
+                    key={i}
+                    href={form.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '14px 18px',
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      background: 'var(--surface)',
+                      textDecoration: 'none',
+                      color: 'var(--text)',
+                      transition: 'border-color .15s, box-shadow .15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      background: FILE_TYPE_COLOR[form.file_type] + '18',
+                      color: FILE_TYPE_COLOR[form.file_type],
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      flexShrink: 0,
+                    }}>
+                      {FILE_TYPE_LABEL[form.file_type]}
+                    </span>
+                    <span style={{ flex: 1, fontWeight: 500 }}>{form.title}</span>
+                    <Icon name="download" size={16} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <h3 style={{ fontSize: '1.1rem', margin: '32px 0 12px' }}>🔗 신청 방법</h3>
