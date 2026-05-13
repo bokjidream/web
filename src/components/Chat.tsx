@@ -10,6 +10,16 @@ interface Message {
   text: string;
 }
 
+interface SavedSession {
+  threadId: string;
+  messages: Message[];
+  flowStage: number;
+  candidates: WelfareCandidate[];
+  isServiceSelect: boolean;
+}
+
+const SESSION_KEY = 'chatSession';
+
 const stageLabels = ['기본 정보', '서비스 선택', '추가 확인', '결과 생성'];
 const stagePct = [15, 40, 70, 100];
 
@@ -17,12 +27,13 @@ export default function Chat() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [flowStage, setFlowStage] = useState(0); // 0:기본정보 1:서비스선택 2:추가확인 3:결과생성
+  const [flowStage, setFlowStage] = useState(0);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<WelfareCandidate[]>([]);
   const [isServiceSelect, setIsServiceSelect] = useState(false);
+  const [hasRestoredSession, setHasRestoredSession] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
 
@@ -30,12 +41,36 @@ export default function Chat() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
-  // 세션 시작 (StrictMode 이중 실행 방지)
+  // 세션 시작 — 저장된 세션 있으면 복원, 없으면 새로 시작
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const saved: SavedSession = JSON.parse(raw);
+        setThreadId(saved.threadId);
+        setMessages(saved.messages);
+        setFlowStage(saved.flowStage);
+        setCandidates(saved.candidates);
+        setIsServiceSelect(saved.isServiceSelect);
+        setHasRestoredSession(true);
+        return;
+      }
+    } catch {}
+
     startChat();
   }, []);
+
+  // 세션 상태 변경 시 자동 저장
+  useEffect(() => {
+    if (!threadId) return;
+    try {
+      const session: SavedSession = { threadId, messages, flowStage, candidates, isServiceSelect };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {}
+  }, [threadId, messages, flowStage, candidates, isServiceSelect]);
 
   const addBotMessage = (text: string) => {
     setMessages((m) => [...m, { role: 'bot', text }]);
@@ -51,7 +86,7 @@ export default function Chat() {
     if (res.type === 'interview') {
       const data = res.data as { question: string; missing_fields: string[] };
       addBotMessage(data.question);
-      setFlowStage((s) => s >= 1 ? 2 : 0); // 서비스 선택 후 interview면 2차 인터뷰 단계
+      setFlowStage((s) => s >= 1 ? 2 : 0);
       setIsServiceSelect(false);
 
     } else if (res.type === 'service_select') {
@@ -61,26 +96,29 @@ export default function Chat() {
       setFlowStage(1);
       addBotMessage(
         data.error
-          ? `${data.error}\n\n${data.candidates}`
-          : data.candidates,
+          ? `${data.error}\n\n아래에서 서비스를 선택해주세요.`
+          : '분석 결과 아래 서비스들이 매칭됐어요. 자세히 알아볼 서비스를 선택해주세요. 👇',
       );
 
     } else if (res.type === 'done') {
       setFlowStage(3);
       addBotMessage('분석이 완료됐어요! 리포트 페이지로 이동합니다. ✨');
       try { sessionStorage.setItem('chatResult', JSON.stringify(res.data)); } catch {}
+      try { sessionStorage.removeItem(SESSION_KEY); } catch {}
       setTimeout(() => router.push('/report'), 1200);
 
     } else if (res.type === 'no_results') {
       addBotMessage(
         '죄송합니다. 입력하신 정보로는 현재 조건에 맞는 복지 서비스를 찾을 수 없습니다.\n\n더 자세한 안내를 원하시면 가까운 주민센터를 방문해 주세요.',
       );
+      try { sessionStorage.removeItem(SESSION_KEY); } catch {}
     }
   };
 
   const startChat = async () => {
     setLoading(true);
     setError(null);
+    setHasRestoredSession(false);
     setMessages([{ role: 'bot', text: '안녕하세요! 저는 복지봇이에요. 😊 받을 수 있는 복지 혜택을 함께 찾아드릴게요.' }]);
     try {
       const res = await fetch('/api/chat/start', { method: 'POST' });
@@ -92,6 +130,16 @@ export default function Chat() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const restartChat = () => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    setThreadId(null);
+    setFlowStage(0);
+    setCandidates([]);
+    setIsServiceSelect(false);
+    startedRef.current = false;
+    startChat();
   };
 
   const submitMessage = async (message: string) => {
@@ -147,6 +195,26 @@ export default function Chat() {
           <Icon name="lock" size={16} /> 입력하신 정보는 기기 밖으로 전송되지 않습니다
         </div>
       </div>
+
+      {/* 이전 세션 복원 배너 */}
+      {hasRestoredSession && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 20px', background: 'var(--primary-light, #EBF2FF)',
+          borderBottom: '1px solid var(--border)', fontSize: '0.88rem', gap: 12,
+        }}>
+          <span style={{ color: 'var(--primary)', fontWeight: 500 }}>
+            💬 이전 대화를 이어가고 있어요
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={restartChat}
+            style={{ flexShrink: 0 }}
+          >
+            새로 시작하기
+          </button>
+        </div>
+      )}
 
       {/* 채팅 영역 */}
       <div className="chat-scroll" ref={scrollRef}>
@@ -228,16 +296,16 @@ export default function Chat() {
         >
           <input
             type="text"
-            placeholder={isServiceSelect ? '번호를 입력하거나 위 목록에서 선택해주세요' : '직접 입력하거나 위 선택지를 눌러주세요'}
+            placeholder={isServiceSelect ? '위 카드에서 서비스를 선택해주세요' : '직접 입력하거나 위 선택지를 눌러주세요'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={loading}
+            disabled={loading || isServiceSelect}
             aria-label="메시지 입력"
           />
           <button type="button" className="icon-btn" aria-label="음성 입력" title="음성 입력">
             <Icon name="mic" size={22} />
           </button>
-          <button type="submit" className="icon-btn primary" aria-label="보내기" disabled={loading || !input.trim()}>
+          <button type="submit" className="icon-btn primary" aria-label="보내기" disabled={loading || isServiceSelect || !input.trim()}>
             <Icon name="send" size={20} color="#fff" />
           </button>
         </form>
