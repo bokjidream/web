@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const AI_URL = process.env.AI_AGENT_URL ?? 'http://localhost:8001';
+const AI_URL = process.env.AI_AGENT_URL ?? 'http://localhost:8000';
 
 export async function POST(req: NextRequest) {
   try {
