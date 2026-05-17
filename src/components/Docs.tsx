@@ -65,8 +65,8 @@ export default function Docs() {
   return (
     <div className="screen" style={{ padding: '32px 0 80px' }}>
       <div className="narrow">
-        <Link href="/results" className="btn btn-ghost btn-sm" style={{ marginBottom: 16 }}>
-          ← 결과 목록으로
+        <Link href="/report" className="btn btn-ghost btn-sm" style={{ marginBottom: 16 }}>
+          ← 리포트로
         </Link>
 
         <div className="card" style={{ padding: 28, marginBottom: 20 }}>

@@ -8,7 +8,22 @@ import type { DoneData } from '@/lib/types';
 
 export default function Report() {
   const [data, setData] = useState<DoneData | null>(null);
+  const [shareToast, setShareToast] = useState(false);
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const handlePdf = () => window.print();
+
+  const handleShare = async () => {
+    const title = `복지봇 자가진단 리포트 - ${data?.selected_service?.serv_nm ?? '복지 서비스'}`;
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2000);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -37,9 +52,18 @@ export default function Report() {
       <div className="narrow">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
           <Link href="/chat" className="btn btn-ghost btn-sm">← 진단 다시하기</Link>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-ghost btn-sm"><Icon name="share" size={14} /> 공유</button>
-            <button className="btn btn-primary btn-sm"><Icon name="download" size={14} color="#fff" /> PDF 저장</button>
+          <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleShare}>
+              <Icon name="share" size={14} /> 공유
+              {shareToast && (
+                <span style={{ position: 'absolute', top: -32, right: 0, background: 'var(--text)', color: '#fff', fontSize: '0.78rem', padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+                  링크 복사됨!
+                </span>
+              )}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={handlePdf}>
+              <Icon name="download" size={14} color="#fff" /> PDF 저장
+            </button>
           </div>
         </div>
 
@@ -154,8 +178,8 @@ export default function Report() {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 24 }}>
-          <button className="btn btn-secondary"><Icon name="share" size={16} /> 가족에게 공유</button>
-          <button className="btn btn-primary"><Icon name="download" size={16} color="#fff" /> PDF로 저장</button>
+          <button className="btn btn-secondary" onClick={handleShare}><Icon name="share" size={16} /> 가족에게 공유</button>
+          <button className="btn btn-primary" onClick={handlePdf}><Icon name="download" size={16} color="#fff" /> PDF로 저장</button>
         </div>
       </div>
     </div>

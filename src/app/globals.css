@@ -566,3 +566,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .stats-grid { grid-template-columns: 1fr !important; }
   .features-grid { grid-template-columns: 1fr !important; }
 }
+
+@media print {
+  nav, header, footer,
+  .btn, a.btn,
+  .privacy-banner,
+  .footer-disclaimer {
+    display: none !important;
+  }
+  body { background: #fff; }
+  .screen { padding: 0 !important; }
+  .narrow { max-width: 100% !important; }
+}
