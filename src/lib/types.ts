@@ -46,10 +46,22 @@ export interface WelfareCandidate {
   required_documents: string[];
   application_method: string;
   application_url: string | null;
+  application_forms: ApplicationForm[];
   detail_fetched: boolean;
+  tgtr_dtl_cn: string;   // 지원대상 상세
+  slct_crit_cn: string;  // 선정기준
+  alw_serv_cn: string;   // 지원내용
+  sprt_cyc_nm: string;   // 지원주기
+  srv_pvsn_nm: string;   // 서비스 제공방식
 }
 
-export type ChatResponseType = 'interview' | 'service_select' | 'done' | 'no_results';
+export type ChatResponseType =
+  | 'interview'
+  | 'service_select'
+  | 'service_detail'
+  | 'draft_fields'
+  | 'done'
+  | 'no_results';
 
 export interface InterviewData {
   question: string;
@@ -62,13 +74,42 @@ export interface ServiceSelectData {
   error: string | null;
 }
 
+export interface ReferenceDoc {
+  title: string;
+  url: string;
+}
+
 export interface FilledForm {
   original_title: string;
   original_url: string;
   file_type: 'hwp' | 'hwpx' | string;
   download_key: string;          // "{thread_id}/{filename}" — AI 서버 /forms/download 경로
-  status: 'success' | 'skipped' | 'failed';
+  status: 'success' | 'skipped' | 'failed' | 'guide_only';
   error?: string | null;
+  guide_text?: string | null;    // status === 'guide_only' (PDF) 시 LLM 생성 안내문
+  user_inputs?: Record<string, string>;  // HWP 자동 채우기 실패 시 사용자 입력값 (수동 작성 참고용)
+}
+
+export interface ServiceDetailData {
+  document_guidance: string;
+  application_guide: string;
+  selected_service: WelfareCandidate;
+  welfare_candidates: WelfareCandidate[];
+}
+
+export interface DraftField {
+  id: string;
+  label: string;
+  type: 'text';
+}
+
+export interface DraftFieldsData {
+  fields: DraftField[];
+  form_title: string;
+  document_guidance?: string;
+  application_guide?: string;
+  selected_service?: WelfareCandidate;
+  welfare_candidates?: WelfareCandidate[];
 }
 
 export interface DoneData {
@@ -78,10 +119,11 @@ export interface DoneData {
   selected_service: WelfareCandidate | null;
   welfare_candidates: WelfareCandidate[];
   filled_forms?: FilledForm[];
+  reference_docs?: ReferenceDoc[];
 }
 
 export interface ChatResponse {
   thread_id: string;
   type: ChatResponseType;
-  data: InterviewData | ServiceSelectData | DoneData | Record<string, never>;
+  data: InterviewData | ServiceSelectData | ServiceDetailData | DraftFieldsData | DoneData | Record<string, never>;
 }
