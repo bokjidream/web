@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from './Icons';
-import type { ChatResponse, ServiceSelectData, WelfareCandidate } from '@/lib/types';
+import type {
+  ChatResponse,
+  ServiceDetailData,
+  ServiceSelectData,
+  WelfareCandidate,
+} from '@/lib/types';
 
 interface Message {
   role: 'bot' | 'user';
@@ -99,6 +104,24 @@ export default function Chat() {
           ? `${data.error}\n\n아래에서 서비스를 선택해주세요.`
           : '분석 결과 아래 서비스들이 매칭됐어요. 자세히 알아볼 서비스를 선택해주세요. 👇',
       );
+
+    } else if (res.type === 'service_detail') {
+      const data = res.data as ServiceDetailData;
+      try {
+        sessionStorage.setItem('chatResult', JSON.stringify({
+          document_guidance: data.document_guidance,
+          application_guide: data.application_guide,
+          selected_service: data.selected_service,
+          welfare_candidates: data.welfare_candidates,
+          filled_forms: [],
+          final_report: '',
+        }));
+        sessionStorage.setItem('chatThreadId', res.thread_id);
+      } catch {}
+      setFlowStage(3);
+      addBotMessage('서비스 안내 페이지로 이동합니다. ✨');
+      try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+      setTimeout(() => router.push('/report'), 800);
 
     } else if (res.type === 'done') {
       setFlowStage(3);
@@ -276,7 +299,7 @@ export default function Chat() {
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-sub)' }}>
                     {c.serv_dgst.slice(0, 80)}...
                   </div>
-                  {c.eligibility_reason && (
+                  {c.eligibility_reason?.trim() && (
                     <div style={{ marginTop: 6, fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 500 }}>
                       → {c.eligibility_reason}
                     </div>
@@ -285,11 +308,24 @@ export default function Chat() {
               ))}
             </div>
           )}
+
         </div>
       </div>
 
       {/* 입력창 */}
       <div className="chat-input-wrap">
+        {flowStage === 2 && !loading && !isServiceSelect && (
+          <div style={{ textAlign: 'right', padding: '0 4px 6px' }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: '0.82rem', color: 'var(--text-sub)' }}
+              onClick={() => submitMessage('__skip__')}
+            >
+              추가 확인 건너뛰기 →
+            </button>
+          </div>
+        )}
         <form
           className="chat-input"
           onSubmit={(e) => { e.preventDefault(); submitMessage(input.trim()); }}

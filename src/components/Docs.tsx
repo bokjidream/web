@@ -22,6 +22,7 @@ const FILE_TYPE_COLOR: Record<ApplicationForm['file_type'], string> = {
 export default function Docs() {
   const [candidate, setCandidate] = useState<WelfareCandidate | null>(null);
   const [guidance, setGuidance] = useState<string>('');
+  const [appGuide, setAppGuide] = useState<string>('');
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [appForms, setAppForms] = useState<ApplicationForm[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
@@ -35,6 +36,7 @@ export default function Docs() {
       if (resultRaw) {
         const result: DoneData = JSON.parse(resultRaw);
         setGuidance(result.document_guidance ?? '');
+        setAppGuide(result.application_guide ?? '');
         // selectedService가 없으면 chatResult의 selected_service 사용
         if (!raw && result.selected_service) {
           setCandidate(result.selected_service);
@@ -43,9 +45,14 @@ export default function Docs() {
     } catch {}
   }, []);
 
-  // application_forms 조회 — WelfareCandidate에는 없으므로 RAG API 직접 호출
+  // application_forms 조회 — AI done 응답에 포함돼 있으면 RAG 호출 스킵
   useEffect(() => {
     if (!candidate?.serv_id) return;
+    // AI 응답에서 이미 받은 경우 RAG 호출 불필요
+    if (candidate.application_forms?.length) {
+      setAppForms(candidate.application_forms);
+      return;
+    }
     setFormsLoading(true);
     fetch(`/api/welfare/${candidate.serv_id}`)
       .then((r) => r.ok ? r.json() as Promise<WelfareDetail> : null)
@@ -177,6 +184,16 @@ export default function Docs() {
           </>
         )}
 
+        {appGuide && (
+          <div className="banner info" style={{ marginTop: 24 }}>
+            <Icon name="doc" size={18} />
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>신청 절차 안내</div>
+              <div style={{ whiteSpace: 'pre-line', fontSize: '0.93rem' }}>{appGuide}</div>
+            </div>
+          </div>
+        )}
+
         <h3 style={{ fontSize: '1.1rem', margin: '32px 0 12px' }}>🔗 신청 방법</h3>
         <div className="card" style={{ padding: 22 }}>
           {candidate?.application_url ? (
@@ -202,8 +219,8 @@ export default function Docs() {
         </div>
 
         <div style={{ marginTop: 28, display: 'flex', justifyContent: 'center' }}>
-          <Link href="/form" className="btn btn-primary btn-lg">
-            <Icon name="doc" size={18} color="#fff" /> 신청서 초안 작성하기
+          <Link href="/report" className="btn btn-ghost">
+            ← 서비스 안내로 돌아가기
           </Link>
         </div>
       </div>
