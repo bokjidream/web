@@ -62,13 +62,17 @@ export interface ServiceSelectData {
   error: string | null;
 }
 
-export interface FilledForm {
-  original_title: string;
+export interface FormField {
+  label: string;
+  value: string | null;
+}
+
+export interface FormInfo {
+  form_index: number;
+  title: string;
+  file_type: string;
   original_url: string;
-  file_type: 'hwp' | 'hwpx' | string;
-  download_key: string;          // "{thread_id}/{filename}" — AI 서버 /forms/download 경로
-  status: 'success' | 'skipped' | 'failed';
-  error?: string | null;
+  fields: FormField[];
 }
 
 export interface DoneData {
@@ -77,7 +81,7 @@ export interface DoneData {
   application_guide: string;
   selected_service: WelfareCandidate | null;
   welfare_candidates: WelfareCandidate[];
-  filled_forms?: FilledForm[];
+  has_hwp_forms?: boolean;
 }
 
 export interface ChatResponse {

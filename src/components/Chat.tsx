@@ -104,6 +104,7 @@ export default function Chat() {
       setFlowStage(3);
       addBotMessage('분석이 완료됐어요! 리포트 페이지로 이동합니다. ✨');
       try { sessionStorage.setItem('chatResult', JSON.stringify(res.data)); } catch {}
+      try { sessionStorage.setItem('threadId', res.thread_id); } catch {}
       try { sessionStorage.removeItem(SESSION_KEY); } catch {}
       setTimeout(() => router.push('/report'), 1200);
 

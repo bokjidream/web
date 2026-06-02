@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Icon from './Icons';
-import type { DoneData, WelfareCandidate } from '@/lib/types';
+import type { DoneData } from '@/lib/types';
 
 function ScoreBadge({ score }: { score: number }) {
   if (score >= 0.6) return <span className="badge badge-green"><span className="badge-dot" />가능성 높음</span>;
@@ -13,7 +12,6 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 export default function Results() {
-  const router = useRouter();
   const [data, setData] = useState<DoneData | null>(null);
 
   useEffect(() => {
@@ -24,11 +22,6 @@ export default function Results() {
   }, []);
 
   const candidates = data?.welfare_candidates ?? [];
-
-  const goToService = (path: string, candidate: WelfareCandidate) => {
-    try { sessionStorage.setItem('selectedService', JSON.stringify(candidate)); } catch {}
-    router.push(path);
-  };
 
   if (!data) {
     return (
@@ -82,14 +75,6 @@ export default function Results() {
                   → {c.eligibility_reason}
                 </div>
               )}
-              <div className="rc-actions">
-                <button className="btn btn-secondary btn-sm" onClick={() => goToService('/docs', c)}>
-                  서류 안내 보기
-                </button>
-                <button className="btn btn-primary btn-sm" onClick={() => goToService('/form', c)}>
-                  신청서 초안 작성 <Icon name="arrow" size={14} />
-                </button>
-              </div>
             </div>
           ))}
         </div>

@@ -32,9 +32,11 @@ export default function Report() {
     } catch {}
   }, []);
 
-  const candidates = data?.welfare_candidates ?? [];
-  const finalReport = data?.final_report ?? '';
   const selected = data?.selected_service;
+  const hasHwpForms = data?.has_hwp_forms ?? false;
+  const documentGuidance = data?.document_guidance ?? '';
+  const applicationGuide = data?.application_guide ?? '';
+  const finalReport = data?.final_report ?? '';
 
   if (!data) {
     return (
@@ -89,36 +91,33 @@ export default function Report() {
               </div>
             )}
 
-            {/* 통계 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
-              <div style={{ background: 'var(--secondary-light)', borderRadius: 12, padding: '18px 20px' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--secondary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {candidates.length}
+            {/* 서류 안내 */}
+            {documentGuidance && (
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>📋 필요 서류 안내</h3>
+                <div style={{ padding: '18px 22px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', fontSize: '0.95rem', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                  {documentGuidance}
                 </div>
-                <div style={{ marginTop: 6, fontWeight: 600, color: 'var(--secondary)' }}>매칭된 서비스</div>
               </div>
-              <div style={{ background: 'var(--primary-light, #EBF2FF)', borderRadius: 12, padding: '18px 20px' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {candidates.filter(c => c.score >= 0.6).length}
-                </div>
-                <div style={{ marginTop: 6, fontWeight: 600, color: 'var(--primary)' }}>가능성 높음</div>
-              </div>
-            </div>
+            )}
 
-            {/* AI 리포트 — 마크다운 렌더링 */}
+            {/* 신청 방법 안내 */}
+            {applicationGuide && (
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>🗂️ 신청 방법</h3>
+                <div style={{ padding: '18px 22px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', fontSize: '0.95rem', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                  {applicationGuide}
+                </div>
+              </div>
+            )}
+
+            {/* AI 최종 보고서 */}
             {finalReport && (
-              <>
-                <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>📋 AI 분석 리포트</h3>
-                <div style={{
-                  padding: '20px 24px',
-                  background: 'var(--surface)',
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                  fontSize: '0.95rem',
-                  lineHeight: 1.8,
-                  color: 'var(--text)',
-                  marginBottom: 28,
-                }}>
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>
+                  <Icon name="sparkles" size={16} /> AI 신청 가이드
+                </h3>
+                <div style={{ padding: '20px 24px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', fontSize: '0.95rem', lineHeight: 1.8, color: 'var(--text)' }}>
                   <ReactMarkdown
                     components={{
                       h1: ({ children }) => <h1 style={{ fontSize: '1.3rem', fontWeight: 700, margin: '16px 0 8px', letterSpacing: '-0.01em' }}>{children}</h1>,
@@ -135,32 +134,6 @@ export default function Report() {
                     {finalReport}
                   </ReactMarkdown>
                 </div>
-              </>
-            )}
-
-            {/* 매칭 서비스 목록 */}
-            <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem' }}>✅ 매칭된 복지 서비스</h3>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 28 }}>
-              {candidates.map((c) => (
-                <div key={c.serv_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 10, gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{c.serv_nm}</div>
-                    <div style={{ color: 'var(--text-sub)', fontSize: '0.88rem', marginTop: 2 }}>{c.department}</div>
-                  </div>
-                  {c.score >= 0.6
-                    ? <span className="badge badge-green"><span className="badge-dot" />가능성 높음</span>
-                    : <span className="badge badge-yellow"><span className="badge-dot" />추가 확인 필요</span>
-                  }
-                </div>
-              ))}
-            </div>
-
-            {/* 다른 서비스 보기 */}
-            {candidates.length > 1 && (
-              <div style={{ marginBottom: 28, textAlign: 'center' }}>
-                <Link href="/results" className="btn btn-ghost btn-sm">
-                  다른 서비스도 보기 ({candidates.length - 1}개 더)
-                </Link>
               </div>
             )}
 
@@ -177,8 +150,13 @@ export default function Report() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={handleShare}><Icon name="share" size={16} /> 가족에게 공유</button>
+          {hasHwpForms && (
+            <Link href="/form" className="btn btn-secondary">
+              <Icon name="download" size={16} /> 서류 작성하기
+            </Link>
+          )}
           <button className="btn btn-primary" onClick={handlePdf}><Icon name="download" size={16} color="#fff" /> PDF로 저장</button>
         </div>
       </div>
