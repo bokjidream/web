@@ -91,8 +91,6 @@ export interface FilledForm {
 }
 
 export interface ServiceDetailData {
-  document_guidance: string;
-  application_guide: string;
   selected_service: WelfareCandidate;
   welfare_candidates: WelfareCandidate[];
 }
@@ -106,16 +104,12 @@ export interface DraftField {
 export interface DraftFieldsData {
   fields: DraftField[];
   form_title: string;
-  document_guidance?: string;
-  application_guide?: string;
   selected_service?: WelfareCandidate;
   welfare_candidates?: WelfareCandidate[];
 }
 
 export interface DoneData {
   final_report: string;
-  document_guidance: string;
-  application_guide: string;
   selected_service: WelfareCandidate | null;
   welfare_candidates: WelfareCandidate[];
   filled_forms?: FilledForm[];

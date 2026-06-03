@@ -21,8 +21,6 @@ const FILE_TYPE_COLOR: Record<ApplicationForm['file_type'], string> = {
 
 export default function Docs() {
   const [candidate, setCandidate] = useState<WelfareCandidate | null>(null);
-  const [guidance, setGuidance] = useState<string>('');
-  const [appGuide, setAppGuide] = useState<string>('');
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [appForms, setAppForms] = useState<ApplicationForm[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
@@ -35,8 +33,6 @@ export default function Docs() {
       const resultRaw = sessionStorage.getItem('chatResult');
       if (resultRaw) {
         const result: DoneData = JSON.parse(resultRaw);
-        setGuidance(result.document_guidance ?? '');
-        setAppGuide(result.application_guide ?? '');
         // selectedService가 없으면 chatResult의 selected_service 사용
         if (!raw && result.selected_service) {
           setCandidate(result.selected_service);
@@ -85,13 +81,6 @@ export default function Docs() {
             아래 서류를 준비해주세요. 체크하면서 준비 현황을 확인할 수 있어요.
           </p>
         </div>
-
-        {guidance && (
-          <div className="banner info" style={{ marginBottom: 20 }}>
-            <Icon name="sparkles" size={18} />
-            <div style={{ whiteSpace: 'pre-line' }}>{guidance}</div>
-          </div>
-        )}
 
         <h3 style={{ fontSize: '1.1rem', margin: '24px 0 12px' }}>📋 필요 서류 체크리스트</h3>
 
@@ -182,16 +171,6 @@ export default function Docs() {
               </div>
             )}
           </>
-        )}
-
-        {appGuide && (
-          <div className="banner info" style={{ marginTop: 24 }}>
-            <Icon name="doc" size={18} />
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>신청 절차 안내</div>
-              <div style={{ whiteSpace: 'pre-line', fontSize: '0.93rem' }}>{appGuide}</div>
-            </div>
-          </div>
         )}
 
         <h3 style={{ fontSize: '1.1rem', margin: '32px 0 12px' }}>🔗 신청 방법</h3>

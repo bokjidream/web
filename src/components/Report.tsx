@@ -233,24 +233,6 @@ export default function Report() {
             </div>
           )}
 
-          {data.document_guidance && (
-            <details style={{ marginBottom: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.93rem', color: 'var(--text)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="sparkles" size={16} color="var(--primary)" /> 📋 필요 서류 확인하기
-              </summary>
-              <div style={{ marginTop: 10, whiteSpace: 'pre-line', fontSize: '0.9rem', color: 'var(--text-sub)', lineHeight: 1.7 }}>{data.document_guidance}</div>
-            </details>
-          )}
-
-          {data.application_guide && (
-            <details style={{ marginBottom: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.93rem', color: 'var(--text)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="doc" size={16} color="var(--primary)" /> 📄 신청 절차 확인하기
-              </summary>
-              <div style={{ marginTop: 10, whiteSpace: 'pre-line', fontSize: '0.9rem', color: 'var(--text-sub)', lineHeight: 1.7 }}>{data.application_guide}</div>
-            </details>
-          )}
-
           {draftError ? (
             <div style={{ padding: '16px 20px', background: 'var(--danger-light)', borderRadius: 12, border: '1px solid var(--danger)', marginBottom: 12 }}>
               <div style={{ color: 'var(--danger)', fontSize: '0.9rem', marginBottom: 10 }}>{draftError}</div>
@@ -278,27 +260,14 @@ export default function Report() {
           {StepIndicator}
 
           <div className="card" style={{ padding: 28, marginBottom: 20 }}>
-            <div style={{ fontSize: '0.88rem', color: 'var(--text-sub)' }}>{selected?.department ?? ''} · 신청서 초안</div>
-            <h1 style={{ margin: '4px 0 0', fontSize: '1.8rem', letterSpacing: '-0.02em' }}>{selected?.serv_nm ?? '복지 서비스'} 신청서</h1>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-sub)', marginBottom: 6 }}>
+              <Icon name="building" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />{selected?.department ?? ''}
+            </div>
+            <h1 style={{ margin: 0, fontSize: '1.8rem', letterSpacing: '-0.02em' }}>{selected?.serv_nm ?? '복지 서비스'}</h1>
+            {selected?.serv_dgst && (
+              <p style={{ color: 'var(--text-sub)', margin: '10px 0 0', fontSize: '0.95rem', lineHeight: 1.7 }}>{selected.serv_dgst}</p>
+            )}
           </div>
-
-          {data?.document_guidance && (
-            <details style={{ marginBottom: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.93rem', color: 'var(--text)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="sparkles" size={16} color="var(--primary)" /> 📋 필요 서류 확인하기
-              </summary>
-              <div style={{ marginTop: 10, whiteSpace: 'pre-line', fontSize: '0.9rem', color: 'var(--text-sub)', lineHeight: 1.7 }}>{data.document_guidance}</div>
-            </details>
-          )}
-
-          {data?.application_guide && (
-            <details style={{ marginBottom: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.93rem', color: 'var(--text)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="doc" size={16} color="var(--primary)" /> 📄 신청 절차 확인하기
-              </summary>
-              <div style={{ marginTop: 10, whiteSpace: 'pre-line', fontSize: '0.9rem', color: 'var(--text-sub)', lineHeight: 1.7 }}>{data.application_guide}</div>
-            </details>
-          )}
 
           <div style={{ padding: '24px', background: 'var(--surface)', border: '1.5px solid var(--primary)', borderRadius: 14, marginBottom: 20, boxShadow: '0 4px 14px rgba(83,122,255,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
