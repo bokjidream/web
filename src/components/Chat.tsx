@@ -109,8 +109,6 @@ export default function Chat() {
       const data = res.data as ServiceDetailData;
       try {
         sessionStorage.setItem('chatResult', JSON.stringify({
-          document_guidance: data.document_guidance,
-          application_guide: data.application_guide,
           selected_service: data.selected_service,
           welfare_candidates: data.welfare_candidates,
           filled_forms: [],
